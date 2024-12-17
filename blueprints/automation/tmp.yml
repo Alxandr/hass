@@ -1,0 +1,67 @@
+alias: WIP
+description: ""
+triggers:
+  - trigger: homeassistant
+    event: start
+  - type: occupied
+    device_id: 62859d89b7e01665db526c51b998f4cb
+    entity_id: 981ce391b1b431ebcb6e9cf4cf6d4022
+    domain: binary_sensor
+    trigger: device
+    id: detected
+conditions: []
+actions:
+  - alias: Turn on light and wait for unoccupied
+    if:
+      - condition: trigger
+        id:
+          - detected
+      - condition: device
+        type: is_off
+        device_id: 890201e4f50541d63669847d3bafc57c
+        entity_id: 76374a124a02b80061c7c2b77ca84a06
+        domain: light
+    then:
+      - if:
+          - condition: not
+            conditions:
+              - condition: time
+                after: "07:00:00"
+                before: "02:00:00"
+                alias: Night
+            alias: Not Night
+        then:
+          - action: light.turn_on
+            metadata: {}
+            data:
+              brightness_pct: 100
+            target:
+              area_id: toilett
+            alias: Turn on light in Toilet to 100%
+        else:
+          - action: light.turn_on
+            metadata: {}
+            data:
+              brightness_pct: 10
+            target:
+              area_id: toilett
+            alias: Turn on light in Toilet to 10%
+        alias: Turn on light in Toilet
+      - wait_for_trigger:
+          - type: not_occupied
+            device_id: 62859d89b7e01665db526c51b998f4cb
+            entity_id: 981ce391b1b431ebcb6e9cf4cf6d4022
+            domain: binary_sensor
+            trigger: device
+        alias: Wait for unoccupied
+  - delay:
+      hours: 0
+      minutes: 2
+      seconds: 0
+      milliseconds: 0
+  - action: light.turn_off
+    metadata: {}
+    data: {}
+    target:
+      area_id: toilett
+mode: restart

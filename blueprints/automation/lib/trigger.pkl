@@ -1,0 +1,36 @@
+open class Trigger {
+	/// The trigger ID.
+	id: String? = null
+
+	/// Display name of the trigger.
+	alias: String? = null
+
+	_value = let (self = this) new {
+		id    = self.id
+		alias = self.alias
+	}
+}
+
+class HomeAssistantStartedTrigger extends Trigger {
+	_value = let (self = this) new {
+		id      = self.id
+		alias   = self.alias
+		trigger = "homeassistant"
+		event   = "start"
+	}
+}
+
+class StateTrigger extends Trigger {
+	entity_id: String
+	from: String? = null
+	to: String? = null
+
+	_value = let (self = this) new {
+		id        = self.id
+		alias     = self.alias
+		trigger   = "state"
+		entity_id = self.entity_id
+		from      = self.from
+		to        = self.to
+	}
+}

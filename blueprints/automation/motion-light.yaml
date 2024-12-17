@@ -1,0 +1,109 @@
+blueprint:
+  domain: automation
+  name: Motion Activated Light
+  description: Controls a light based on a motion sensor.
+
+  homeassistant:
+    min_version: "2022.4.0"
+
+  input:
+    sensor:
+      name: Motion sensor(s)
+      description: The motion sensor(s) that triggers the light.
+      selector:
+        entity:
+          multiple: true
+          filter:
+            domain: binary_sensor
+            device_class: occupancy
+
+    light:
+      name: Light(s)
+      description: The light(s) to control.
+      selector:
+        target:
+          entity:
+            domain: light
+
+    duration:
+      name: Light on duration
+      description: The duration the light should stay on after motion is no longer detected.
+      default:
+        hours: 0
+        minutes: 5
+        seconds: 0
+      selector:
+        duration: {}
+
+    default_brightness:
+      name: Brightness
+      description: The brightness to set the light to when motion is detected.
+      default: 100
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+          mode: box
+
+    condition_1:
+      name: Brightness condition 1
+      description: Apply a condition to modify the brightness.
+      collapsed: true
+
+      input:
+        condition_1_enabled:
+          name: Enabled
+          description: Enable the condition.
+          default: false
+          selector:
+            boolean: {}
+
+        condition_1_condition:
+          name: condition
+          description: The condition to check.
+          selector:
+            condition: {}
+
+# If motion is detected within the delay, we restart the script.
+mode: restart
+max_exceeded: silent
+
+variables:
+  lights: !input "light"
+  light_entities: |
+    {%- set ns = namespace(entities=[]) %}
+    {%- for key in ['device', 'area', 'entity'] %}
+      {%- set items = lights.get(key ~ '_id', [])  %}
+      {%- if items %}
+        {%- set items = [ items ] if items is string else items %}
+        {%- set items = items if key == 'entity' else items | map(key ~ '_entities') | sum(start=[]) %}
+        {%- set ns.entities = ns.entities + items %}
+      {%- endif %}
+    {%- endfor %}
+    {%- set ns.lights = expand(ns.entities) | selectattr('domain', '==', 'light') | map(attribute='entity_id') %}
+    {{ ns.lights | list }}
+  light_entities_on: "{{ light_entities | select('is_state', 'on') | list }}"
+  light_entities_off: "{{ light_entities | select('is_state', 'off') | list }}"
+  light_min_brightness: "{{ light_entities_on | map('state_attr', 'brightness_pct') | min }}"
+
+triggers:
+  - trigger: homeassistant
+    event: start
+
+  - trigger: state
+    entity_id: !input sensor
+    from: "off"
+    to: "on"
+    id: motion_detected
+
+actions:
+  - alias: Turn on light and wait for unoccupied
+    if:
+      - condition: trigger
+        id:
+          - detected
+    then:
+      - if:
+          # some lights in the group are off
+          - "{{ expand(lights.entity_id) | selectattr('state', '==', 'off') | list | count > 0 }}"

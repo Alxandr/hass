@@ -1,0 +1,271 @@
+module AutomationBlueprint.Inputs
+
+/****************************************************************
+ * Blueprint Input Types
+ ****************************************************************/
+
+/// A blueprint input.
+open class Input {
+	/// The input (friendly) name.
+	name: String
+
+	/// The input description.
+	description: String
+
+	_value = let (self = this) new {
+		name        = self.name
+		description = self.description
+	}
+}
+
+/// A blueprint group.
+class Group {
+	/// The group (friendly) name.
+	name: String
+
+	/// The group description.
+	description: String
+
+	/// When `true`, the group is collapsed by default.
+	collapsed: Boolean? = null
+
+	/// The group inputs.
+	inputs: Mapping<String, Input>
+
+	_value = let (self = this) new {
+		name        = self.name
+		description = self.description
+		collapsed   = self.collapsed
+		input       = self.inputs.toMap().mapValues((key, value) -> value._value)
+	}
+}
+
+/// A blueprint input for an entity.
+class EntityInput extends Input {
+	/// Allows selecting multiple entities. If set to `true`,
+	/// the resulting value of this selector will be a list
+	/// instead of a single string value.
+	multiple: Boolean = false
+
+	/// List of entity IDs to exclude from the selectable list.
+	exclude_entities: Listing<String>? = null
+
+	/// List of entity IDs to limit the selectable list to.
+	include_entities: Listing<String>? = null
+
+	/// When filter options are provided, the entities are limited
+	/// by entities that at least match the given conditions. Can be
+	/// either an object or a list of objects.
+	filter: EntityFilter? = null;
+
+	/// The default value for the input.
+	default: (Listing<String> | String)? = null
+
+	_value = let (self = this) new Mapping {
+		["name"]                 = self.name
+		["description"]          = self.description
+		["default"]              = self.default.ifNonNull((d) -> if (d is String) List(d) else d.toList())
+		["selector"]             = new {
+			entity             = new {
+				multiple         = self.multiple
+				exclude_entities = self.exclude_entities
+				include_entities = self.include_entities
+				filter           = self.filter?._value
+			}
+		}
+	}
+}
+
+/// A blueprint input for a service target.
+class TargetInput extends Input {
+	/// When device options are provided, the targets are limited by devices
+	/// that at least match the given conditions. Can be either a object or a
+	/// list of object.
+	device: (Listing<TargetDeviceFilter> | TargetDeviceFilter)? = null
+
+	/// When entity options are provided, the targets are limited by entities
+	/// that at least match the given conditions. Can be either a object or a
+	/// list of object.
+	entity: (Listing<TargetEntityFilter> | TargetEntityFilter)? = null
+
+	_value = let (self = this) new Mapping {
+		["name"]        = self.name
+		["description"] = self.description
+		["device"]      = self.device.ifNonNull((d) -> if (d is TargetDeviceFilter) List(d) else d.toList())
+		["entity"]      = self.entity.ifNonNull((d) -> if (d is TargetEntityFilter) List(d._value) else d.toList().map((e) -> e._value))
+	}
+}
+
+/// A blueprint input for a duration value.
+class DurationInput extends Input {
+	/// When `true`, the duration selector will allow selecting days.
+	enable_day: Boolean? = null
+
+	/// When `true`, the duration selector will allow selecting milliseconds.
+	enable_millisecond: Boolean? = null
+
+	/// The default value for the input.
+	default: Duration? = null
+
+	_value = let (self = this) new Mapping {
+		["name"]               = self.name
+		["description"]        = self.description
+		["default"]            = self.default
+		["selector"]           = new {
+			duration             = new {
+				enable_day         = self.enable_day
+				enable_millisecond = self.enable_millisecond
+			}
+		}
+	}
+}
+
+/// A blueprint input for a number value.
+class NumberInput extends Input {
+	/// The default value for the input.
+	default: Number? = null
+
+	/// The minimum value for the input.
+	min: Number? = null
+
+	/// The maximum value for the input.
+	max: Number? = null
+
+	/// The unit of measurement for the input.
+	unit_of_measurement: String? = null
+
+	/// The input mode. Can be either `box` or `slider`.
+	mode: ("box" | "slider")? = null
+
+	_value = let (self = this) new Mapping {
+		["name"]                = self.name
+		["description"]         = self.description
+		["default"]             = self.default
+		["selector"]            = new {
+			number                = new {
+				min                 = self.min
+				max                 = self.max
+				unit_of_measurement = self.unit_of_measurement
+				mode               = self.mode
+			}
+		}
+	}
+}
+
+/// A blueprint input for a boolean.
+class BooleanInput extends Input {
+	/// The default value for the input.
+	default: Boolean? = null
+
+	_value = let (self = this) new Mapping {
+		["name"]        = self.name
+		["description"] = self.description
+		["default"]     = self.default
+		["selector"]    = new {
+			boolean       = new {}
+		}
+	}
+}
+
+/// A blueprint input for a condition.
+class ConditionInput extends Input {
+	_value = let (self = this) new Mapping {
+		["name"]        = self.name
+		["description"] = self.description
+		["selector"]    = new {
+			condition     = new {}
+		}
+	}
+}
+
+/****************************************************************
+ * Input Filter Types
+ ****************************************************************/
+
+/// A filter for entities.
+class EntityFilter {
+	/// Can be set to an integration domain. Limits the list of entities
+	/// to entities provided by the set integration domain, for example,
+	/// `zha`.
+	integration: String? = null
+
+	/// Limits the list of entities to entities of a certain domain(s),
+	/// for example, `light` or `binary_sensor`. Can be either a string with
+	/// a single domain, or a list of string domains to limit the selection to.
+	domain: (Listing<String> | String)? = null
+
+	/// Limits the list of entities to entities that have a certain device class(es),
+	/// for example, `motion` or `window`. Can be either a string with a single
+	/// device_class, or a list of string device_class to limit the selection to.
+	device_class: (Listing<String> | String)? = null
+
+	/// Limits the list of entities to entities that have a certain supported feature,
+	/// for example, `light.LightEntityFeature.TRANSITION` or `climate.ClimateEntityFeature.TARGET_TEMPERATURE`.
+	/// Should be a list of features.
+	supported_features: (Listing<String> | String)? = null
+
+	_value = let (self = this) new {
+		integration        = self.integration
+		domain             = self.domain.ifNonNull((d) -> if (d is String) List(d) else d.toList())
+		device_class       = self.device_class.ifNonNull((d) -> if (d is String) List(d) else d.toList())
+		supported_features = self.supported_features.ifNonNull((d) -> if (d is String) List(d) else d.toList())
+	}
+}
+
+/// A filter for service-targets based on the device.
+class TargetDeviceFilter {
+	/// Can be set to an integration domain. Limits the device targets that are
+	/// provided devices by the set integration domain, for example, `zha`.
+	integration: String? = null
+
+	/// When set, it limits the targets to devices provided by the set manufacturer name.
+	manufacturer: String? = null
+
+	/// When set, it limits the targets to devices by the set model.
+	model: String? = null
+}
+
+/// A filter for service-targets based on the entity.
+class TargetEntityFilter {
+	/// Can be set to an integration domain. Limits targets to entities provided by the
+	/// set integration domain, for example, `zha`.
+	integration: String? = null
+
+	/// Limits the targets to entities of a certain domain(s), for example, `light` or
+	/// `binary_sensor`. Can be either a with a single domain, or a list of string domains
+	/// to limit the selection to.
+	domain: (Listing<String> | String)? = null
+
+	/// Limits the targets to entities with a certain device class(es), for example,
+	/// `motion` or `window`. Can be either a string with a single device_class, or a
+	/// list of string device_class to limit the selection to.
+	device_class: (Listing<String> | String)? = null
+
+	_value = let (self = this) new {
+		integration  = self.integration
+		domain       = self.domain.ifNonNull((d) -> if (d is String) List(d) else d.toList())
+		device_class = self.device_class.ifNonNull((d) -> if (d is String) List(d) else d.toList())
+	}
+}
+
+/****************************************************************
+ * Input Value Types
+ ****************************************************************/
+
+ /// A duration value.
+ class Duration {
+	/// The number of days.
+	days: Int? = null
+
+	/// The number of hours.
+	hours: Int? = null
+
+	/// The number of minutes.
+	minutes: Int? = null
+
+	/// The number of seconds.
+	seconds: Int? = null
+
+	/// The number of milliseconds.
+	milliseconds: Int? = null
+ }

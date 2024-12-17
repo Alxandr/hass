@@ -1,0 +1,95 @@
+amends "./lib/automation-blueprint.pkl"
+
+import "./lib/input.pkl"
+import "./lib/trigger.pkl"
+import "./lib/helpers.pkl"
+
+name = "Motion Activated Light"
+
+description = "Controls a light based on a motion sensor."
+
+inputs = new Mapping {
+	["sensor"] = new input.EntityInput {
+		name           = "Motion sensor(s)"
+		description    = "The motion sensor(s) that triggers the light."
+		filter         = new input.EntityFilter {
+			domain       = "binary_sensor"
+			device_class = "occupancy"
+		}
+	}
+
+	["light"] = new input.TargetInput {
+		name        = "Light(s)"
+		description = "The light(s) to control."
+		entity      = new input.TargetEntityFilter {
+			domain    = "light"
+		}
+	}
+
+	["duration"] = new input.DurationInput {
+		name        = "Duration"
+		description = "The duration the light should stay on after motion is detected."
+		default     = new input.Duration {
+      minutes = 5
+		}
+	}
+
+	["default_brightness"] = new input.NumberInput {
+		name                = "Default brightness"
+		description         = "The brightness level to set the light to when motion is detected."
+		default             = 100
+		min                 = 0
+		max                 = 100
+		unit_of_measurement = "%"
+		mode                = "box"
+	}
+
+	["condition_1"] = new input.Group {
+		name 			  = "Brightness condition 1"
+		description = "The brightness condition to trigger the light."
+		collapsed   = true
+
+		inputs = new Mapping {
+			["condition_1_enabled"] = new input.BooleanInput {
+				name        = "Enabled"
+				description = "Enable the condition."
+				default     = false
+			}
+
+			["condition_1_condition"] = new input.ConditionInput {
+				name        = "Condition"
+				description = "The condition to check."
+			}
+
+			["condition_1_brightness"] = new input.NumberInput {
+				name                = "Brightness"
+				description         = "The brightness level to set the light to when the condition is met."
+				default             = 100
+				min                 = 0
+				max                 = 100
+				unit_of_measurement = "%"
+				mode                = "box"
+			}
+		}
+	}
+}
+
+variables = new Mapping {
+	["_targets_lights"]      = "!input light"
+	["lights"]               = helpers.targetEntities("_targets_lights", "light")
+	["lights_on"]    = "{{ lights | select('is_state', 'on') | list }}"
+  ["lights_off"]   = "{{ lights | select('is_state', 'off') | list }}"
+  ["lights_min_brightness"] = "{{ lights_on | map('state_attr', 'brightness_pct') | min }}"
+}
+
+local detectedTriggerId = "detected";
+
+triggers = new Listing {
+	new trigger.HomeAssistantStartedTrigger {}
+	new trigger.StateTrigger {
+		id = detectedTriggerId
+		alias = "Motion detected"
+		entity_id = "!input sensor"
+		to = "on"
+	}
+}

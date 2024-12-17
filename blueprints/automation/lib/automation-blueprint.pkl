@@ -1,0 +1,42 @@
+module AutomationBlueprint
+
+import "./input.pkl"
+import "./trigger.pkl"
+
+/// The blueprint name.
+name: String
+
+/// The blueprint description.
+description: String
+
+/// The blueprint mode.
+mode: ("restart")? = null
+
+/// What to do when the maximum number of automations is exceeded.
+max_exceeded: ("silent")? = null
+
+/// The blueprint inputs.
+inputs: Mapping<String, input.Input | input.Group>
+
+/// Blueprint variables
+variables: Mapping<String, String>? = null
+
+/// The blueprint triggers
+triggers: Listing<trigger.Trigger>
+
+output = new {
+	renderer = new YamlRenderer {}
+	value = new {
+		blueprint = new {
+			domain      = "automation"
+			name        = module.name
+			description = module.description
+			input       = module.inputs.toMap().mapValues((key, value) -> value._value)
+		}
+
+		mode         = module.mode
+		max_exceeded = module.max_exceeded
+		variables    = module.variables
+		triggers     = module.triggers.toList().map((t) -> t._value)
+	}
+}

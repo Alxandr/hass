@@ -1,0 +1,18 @@
+module AutomationBlueprint.Helpers
+
+import "./input.pkl"
+
+function targetEntities(source: String, domain: String): String =
+	"""
+	{%- set ns = namespace(entities=[]) %}
+	{%- for key in ['device', 'area', 'entity'] %}
+		{%- set items = \(source).get(key ~ '_id', [])  %}
+		{%- if items %}
+			{%- set items = [ items ] if items is string else items %}
+			{%- set items = items if key == 'entity' else items | map(key ~ '_entities') | sum(start=[]) %}
+			{%- set ns.entities = ns.entities + items %}
+		{%- endif %}
+	{%- endfor %}
+	{%- set filtered = expand(ns.entities) | selectattr('domain', '==', '\(domain)') | map(attribute='entity_id') %}
+	{{ filtered | list }}
+	"""
